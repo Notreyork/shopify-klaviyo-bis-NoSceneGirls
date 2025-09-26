@@ -8,9 +8,15 @@ export default async function handler(req, res) {
   if (req.method !== 'POST') return res.status(405).send('Method not allowed');
 
   let body = {};
+
+  // Safely parse JSON
   try {
-    body = JSON.parse(req.body);
-    console.log('Request body:', body); // ✅ Log the incoming body
+    if (typeof req.body === 'string') {
+      body = JSON.parse(req.body);
+    } else {
+      body = req.body; // already parsed object
+    }
+    console.log('Request body:', body);
   } catch (err) {
     console.error('JSON parse error:', err);
     return res.status(400).json({ success: false, message: 'Invalid JSON' });
@@ -41,12 +47,11 @@ export default async function handler(req, res) {
     });
 
     const data = await response.json();
-    console.log('Klaviyo response:', data); // ✅ Log Klaviyo response
+    console.log('Klaviyo response:', data);
 
     if (response.ok) {
       return res.status(200).json({ success: true, data });
     } else {
-      console.error('Klaviyo API error:', data);
       return res.status(500).json({ success: false, data });
     }
   } catch (err) {
