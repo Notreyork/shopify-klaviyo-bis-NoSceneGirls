@@ -8,33 +8,21 @@ export default async function handler(req, res) {
   if (req.method !== 'POST') return res.status(405).send('Method not allowed');
 
   let body = {};
-
-  // Safely parse JSON
   try {
-    if (typeof req.body === 'string') {
-      body = JSON.parse(req.body);
-    } else {
-      body = req.body; // already parsed object
-    }
-    console.log('Request body:', body);
-  } catch (err) {
-    console.error('JSON parse error:', err);
+    body = typeof req.body === 'string' ? JSON.parse(req.body) : req.body;
+  } catch {
     return res.status(400).json({ success: false, message: 'Invalid JSON' });
   }
 
   const { email, variant_id, product_name, product_url } = body;
-
-  if (!email || !variant_id) {
-    console.error('Missing email or variant_id');
-    return res.status(400).json({ success: false, message: 'Missing email or variant_id' });
-  }
+  if (!email || !variant_id) return res.status(400).json({ success: false, message: 'Missing email or variant_id' });
 
   try {
-    const response = await fetch('https://a.klaviyo.com/api/v1/back-in-stock-subscriptions', {
+    const response = await fetch('https://a.klaviyo.com/client/back-in-stock-subscriptions/', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        'Authorization': 'Klaviyo-API-Key pk_b07ff9fa9fa139380dfca4a36aad74f46b'
+        'Authorization': 'Klaviyo-API-Key UwqfMQ'  // Use public API key
       },
       body: JSON.stringify({
         profiles: [{ email }],
