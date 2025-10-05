@@ -1,54 +1,59 @@
+import fetch from "node-fetch";
+
 export default async function handler(req, res) {
-  // ✅ CORS headers
-  res.setHeader('Access-Control-Allow-Origin', '*');
-  res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
-  res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
-
-  if (req.method === 'OPTIONS') return res.status(200).end();
-  if (req.method !== 'POST') return res.status(405).send('Method not allowed');
-
-  // Parse JSON safely
-  let body = {};
-  try {
-    body = typeof req.body === 'string' ? JSON.parse(req.body) : req.body;
-    console.log('Request body:', body);
-  } catch {
-    return res.status(400).json({ success: false, message: 'Invalid JSON' });
-  }
-
-  const { email, variant_id, product_name, product_url } = body;
-
-  if (!email || !variant_id) {
-    return res.status(400).json({ success: false, message: 'Missing email or variant_id' });
+  if (req.method !== "POST") {
+    return res.status(405).json({ error: "Method not allowed" });
   }
 
   try {
-    const response = await fetch('https://a.klaviyo.com/client/back-in-stock-subscriptions/', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': 'Klaviyo-API-Key UwqfMQ' // public API key
-      },
-      body: JSON.stringify({
-        profiles: [{ email }],
-        properties: {
-          variant_id: parseInt(variant_id),
-          product_name,
-          product_url
-        }
-      })
-    });
+    const { email, variantId, productId } = req.body;
 
-    const data = await response.json();
-    console.log('Klaviyo response:', data);
-
-    if (response.ok) {
-      return res.status(200).json({ success: true, data });
-    } else {
-      return res.status(500).json({ success: false, data });
+    if (!email || !variantId || !productId) {
+      return res.status(400).json({ error: "Missing parameters" });
     }
+
+    // Build payload for Klaviyo API
+    const payload = {
+      data: {
+        type: "back-in-stock-subscription",
+        attributes: {
+          profile: { email },
+          channels: ["EMAIL"],
+        },
+        relationships: {
+          variant: {
+            data: {
+              type: "catalog-variant",
+              id: `shopify://${productId}?variant=${variantId}`,
+            },
+          },
+        },
+      },
+    };
+
+    const klaviyoRes = await fetch(
+      "https://a.klaviyo.com/api/back-in-stock-subscriptions",
+      {
+        method: "POST",
+        headers: {
+          accept: "application/vnd.api+json",
+          revision: "2025-07-15",
+          "content-type": "application/vnd.api+json",
+          Authorization: "Klaviyo-API-Key UwqfMQ", // PRIVATE key
+        },
+        body: JSON.stringify(payload),
+      }
+    );
+
+    const data = await klaviyoRes.json();
+
+    if (!klaviyoRes.ok) {
+      return res.status(klaviyoRes.status).json(data);
+    }
+
+    return res.status(200).json(data);
   } catch (err) {
-    console.error('Server error:', err);
-    return res.status(500).json({ success: false, message: 'Server error' });
+    console.error(err);
+    return res.status(500).json({ error: "Server error" });
   }
 }
